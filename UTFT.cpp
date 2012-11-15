@@ -57,13 +57,22 @@
 
 #include <SPI.h>
 
+#if DISABLE_EVERYTHING_BUT_ADAFRUIT
+// hack, corbin, this breaks everything else
+#define cbi(reg, bitmask) *csport &= ~cspinmask
+#define sbi(reg, bitmask) *csport |= cspinmask
+#else
+
+#endif
+
 
 UTFT::UTFT()
 {
 }
 
 UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
-{ 
+{
+#if !DISABLE_EVERYTHING_BUT_ADAFRUIT
 	switch (model)
 	{
 		case HX8347A:
@@ -150,6 +159,7 @@ UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 			display_transfer_mode=16;
 			break;
 	}
+#endif
 	display_model=model;
 
     if (display_model == ADAFRUIT_2_2_TFT) {
@@ -247,10 +257,8 @@ void UTFT::LCD_Write_COM(char VL)
 void UTFT::LCD_Write_DATA(char VH,char VL)
 {
     if (display_model == ADAFRUIT_2_2_TFT) {
-        *csport &= ~cspinmask;
         writeData(VH);
         writeData(VL);
-        *csport |=  cspinmask;
     } else {
 #if !DISABLE_EVERYTHING_BUT_ADAFRUIT
         if (display_transfer_mode!=1)
@@ -1648,8 +1656,6 @@ void UTFT::setXY(word x1, word y1, word x2, word y2)
 #if ENABLE_ADAFRUIT_22_TFT
         case ADAFRUIT_2_2_TFT:
             
-            *csport &= ~cspinmask;
-            
             writeCommand(HX8340B_N_CASET); // Column addr set
             writeData(0); writeData(x1);   // X start
             writeData(0); writeData(x2);   // X end
@@ -1659,8 +1665,6 @@ void UTFT::setXY(word x1, word y1, word x2, word y2)
             writeData(0); writeData(y2);   // Y end
             
             writeCommand(HX8340B_N_RAMWR);
-            
-            *csport |=  cspinmask;
             
             break;
 #endif
@@ -1978,24 +1982,20 @@ void UTFT::fillCircle(int x, int y, int radius)
 
 void UTFT::clrScr()
 {
+    cbi(P_CS, B_CS);
     if (display_model == ADAFRUIT_2_2_TFT) {
         clrXY();
-        
-        *csport &= ~cspinmask;
         for (int i=0; i<((disp_x_size+1)*(disp_y_size+1)); i++)
         {
             // black
             writeData(0); // hi bit of the color
             writeData(0); // low bit of the color
         }
-        *csport |= cspinmask;
-
     }
 #if !DISABLE_EVERYTHING_BUT_ADAFRUIT
     else {
         long i;
         
-        cbi(P_CS, B_CS);
         clrXY();
         if (display_transfer_mode!=1)
             sbi(P_RS, B_RS);
@@ -2009,9 +2009,9 @@ void UTFT::clrScr()
                 LCD_Writ_Bus(1,0,display_transfer_mode);
             }
         }
-        sbi(P_CS, B_CS);
     }
 #endif
+    sbi(P_CS, B_CS);
 }
 
 void UTFT::fillScr(byte r, byte g, byte b)
@@ -2060,14 +2060,10 @@ void UTFT::setPixel(byte r,byte g,byte b)
 
 void UTFT::drawPixel(int x, int y)
 {
-//#if !DISABLE_EVERYTHING_BUT_ADAFRUIT
-	cbi(P_CS, B_CS); // corbin!!! do we need these?? is it setting the chip select? i do that differently..
-//#endif
+	cbi(P_CS, B_CS);
 	setXY(x, y, x, y);
 	setPixel(fcolorr, fcolorg, fcolorb);
-//#if !DISABLE_EVERYTHING_BUT_ADAFRUIT
 	sbi(P_CS, B_CS);
-//#endif
 	clrXY();
 }
 
