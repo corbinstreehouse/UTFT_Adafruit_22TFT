@@ -95,6 +95,8 @@
 #define ITDB24E_8		14	// S6D1121	(8bit)
 #define ITDB24E_16		15	// S6D1121	(16bit)
 
+#define ADAFRUIT_2_2_TFT 16
+
 #define SERIAL_4PIN		4
 #define SERIAL_5PIN		5
 
@@ -150,6 +152,16 @@ class UTFT
 		int  getDisplayXSize();
 		int	 getDisplayYSize();
 
+  private:
+    // ada fruit display only (hacked from Adafruit_HX8340B)
+    int8_t           cs, rst;
+    volatile uint8_t *dataport  , *clkport  , *csport;
+    uint8_t          datapinmask, clkpinmask, cspinmask, spi_save;
+
+    void InitAdaFruitTFT();
+    void writeCommand(uint8_t c);
+    void writeData(uint8_t c);
+    
 	protected:
 		byte fcolorr,fcolorg,fcolorb;
 		byte bcolorr,bcolorg,bcolorb;
