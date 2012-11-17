@@ -8,7 +8,7 @@
   it was time to make a single, universal library as it will be much 
   easier to maintain in the future.
 
-  Basic functionality of this library was origianlly based on the 
+  Basic functionality of this library was originally based on the
   demo-code provided by ITead studio (for the ITDB02 modules) and 
   NKC Electronics (for the RGB GLCD module/shield).
 
@@ -57,12 +57,10 @@
 
 #include <SPI.h>
 
-#if DISABLE_EVERYTHING_BUT_ADAFRUIT
-// hack, corbin, this breaks everything else
-#define cbi(reg, bitmask) *csport &= ~cspinmask
-#define sbi(reg, bitmask) *csport |= cspinmask
-#else
-
+#if ENABLE_ADAFRUIT_22_TFT
+    // hack, corbin, this breaks everything else
+    #define cbi(reg, bitmask) *csport &= ~cspinmask
+    #define sbi(reg, bitmask) *csport |= cspinmask
 #endif
 
 
@@ -72,7 +70,7 @@ UTFT::UTFT()
 
 UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 {
-#if !DISABLE_EVERYTHING_BUT_ADAFRUIT
+#if !ENABLE_ADAFRUIT_22_TFT
 	switch (model)
 	{
 		case HX8347A:
@@ -162,6 +160,7 @@ UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 #endif
 	display_model=model;
 
+#if ENABLE_ADAFRUIT_22_TFT
     if (display_model == ADAFRUIT_2_2_TFT) {
         rst   = RST;
         cs    = CS;
@@ -193,7 +192,9 @@ UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
         SPI.setBitOrder(MSBFIRST);
         SPI.setDataMode(SPI_MODE0);
         spi_save    = SPCR; // Save SPI config bits for later
-    } else {
+    } else
+#endif
+    {
         if (display_transfer_mode!=1)
         {
             _set_direction_registers(display_transfer_mode);
@@ -236,13 +237,16 @@ UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 
 void UTFT::LCD_Write_COM(char VL)  
 {
+#if ENABLE_ADAFRUIT_22_TFT
     if (display_model == ADAFRUIT_2_2_TFT) {
         *csport &= ~cspinmask;
-        writeData(0x00); // corbin, right???
+        writeData(0x00);
         writeData(VL);
         *csport |=  cspinmask;
-    } else {
-#if !DISABLE_EVERYTHING_BUT_ADAFRUIT
+    }
+#else
+    else
+    {
         if (display_transfer_mode!=1)
         {
             cbi(P_RS, B_RS);
@@ -250,8 +254,8 @@ void UTFT::LCD_Write_COM(char VL)
         }
         else
             LCD_Writ_Bus(0x00,VL,display_transfer_mode);
-#endif
     }
+#endif
 }
 
 void UTFT::LCD_Write_DATA(char VH,char VL)
@@ -260,7 +264,7 @@ void UTFT::LCD_Write_DATA(char VH,char VL)
         writeData(VH);
         writeData(VL);
     } else {
-#if !DISABLE_EVERYTHING_BUT_ADAFRUIT
+#if !ENABLE_ADAFRUIT_22_TFT
         if (display_transfer_mode!=1)
         {
             sbi(P_RS, B_RS);
@@ -281,7 +285,7 @@ void UTFT::LCD_Write_DATA(char VL)
         Serial.println("LCD_Write_DATA should not be called");
 
     } else {
-#if !DISABLE_EVERYTHING_BUT_ADAFRUIT
+#if !ENABLE_ADAFRUIT_22_TFT
         if (display_transfer_mode!=1)
         {
             sbi(P_RS, B_RS);
@@ -296,14 +300,13 @@ void UTFT::LCD_Write_DATA(char VL)
 void UTFT::LCD_Write_COM_DATA(char com1,int dat1)
 {
     // not called by ADAFRUIT_2_2_TFT case
-#if !DISABLE_EVERYTHING_BUT_ADAFRUIT
+#if !ENABLE_ADAFRUIT_22_TFT
      LCD_Write_COM(com1);
      LCD_Write_DATA(dat1>>8,dat1);
 #endif
 }
 
 #if ENABLE_ADAFRUIT_22_TFT
-
 
 #define HX8340B_LCDWIDTH                  176
 #define HX8340B_LCDHEIGHT                 220
@@ -475,7 +478,7 @@ void UTFT::InitLCD(byte orientation)
         InitAdaFruitTFT();
 #endif
     } else {
-#if !DISABLE_EVERYTHING_BUT_ADAFRUIT
+#if !ENABLE_ADAFRUIT_22_TFT
         switch(display_model)
         {
     #ifndef DISABLE_HX8347A
@@ -1983,6 +1986,7 @@ void UTFT::fillCircle(int x, int y, int radius)
 void UTFT::clrScr()
 {
     cbi(P_CS, B_CS);
+#if ENABLE_ADAFRUIT_22_TFT
     if (display_model == ADAFRUIT_2_2_TFT) {
         clrXY();
         for (int i=0; i<((disp_x_size+1)*(disp_y_size+1)); i++)
@@ -1991,9 +1995,9 @@ void UTFT::clrScr()
             writeData(0); // hi bit of the color
             writeData(0); // low bit of the color
         }
-    }
-#if !DISABLE_EVERYTHING_BUT_ADAFRUIT
-    else {
+    } else
+#else
+    {
         long i;
         
         clrXY();
@@ -2493,6 +2497,10 @@ void UTFT::setFont(uint8_t* font)
 	cfont.y_size=fontbyte(1);
 	cfont.offset=fontbyte(2);
 	cfont.numchars=fontbyte(3);
+}
+
+_current_font *UTFT::getFont() {
+    return &cfont;
 }
 
 void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int scale)

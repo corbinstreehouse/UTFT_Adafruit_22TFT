@@ -55,6 +55,12 @@
 #define PORTRAIT 0
 #define LANDSCAPE 1
 
+// Predfined colors for use in setColor(..)
+#define WHITE_COLOR 255, 255, 255
+#define BLACK_COLOR 0, 0, 0
+#define RED_COLOR 255, 0, 0
+#define ORANGE_COLOR 255, 144, 0
+
 #define HX8347A			0
 #define ILI9327			1
 #define SSD1289			2
@@ -112,6 +118,8 @@
 	#include "HW_PIC32_defines.h"
 #endif
 
+#include "UGeometry.h"
+
 struct _current_font
 {
 	uint8_t* font;
@@ -120,6 +128,7 @@ struct _current_font
 	uint8_t offset;
 	uint8_t numchars;
 };
+
 
 class UTFT
 {
@@ -134,6 +143,8 @@ class UTFT
 		void drawRect(int x1, int y1, int x2, int y2);
 		void drawRoundRect(int x1, int y1, int x2, int y2);
 		void fillRect(int x1, int y1, int x2, int y2);
+        void inline fillRect(URect r) { fillRect(URectMinX(r), URectMinY(r), URectMaxX(r), URectMaxY(r)); }
+    
 		void fillRoundRect(int x1, int y1, int x2, int y2);
 		void drawCircle(int x, int y, int radius);
 		void fillCircle(int x, int y, int radius);
@@ -144,6 +155,7 @@ class UTFT
 		void printNumI(long num, int x, int y, int length=0, char filler=' ');
 		void printNumF(double num, byte dec, int x, int y, char divider='.', int length=0, char filler=' ');
 		void setFont(uint8_t* font);
+        _current_font *getFont();
 		void drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int scale=1);
 		void drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg, int rox, int roy);
 		void lcdOff();
@@ -152,15 +164,15 @@ class UTFT
 		int  getDisplayXSize();
 		int	 getDisplayYSize();
 
-  private:
-    // ada fruit display only (hacked from Adafruit_HX8340B)
-    int8_t           cs, rst;
-    volatile uint8_t *dataport  , *clkport  , *csport;
-    uint8_t          datapinmask, clkpinmask, cspinmask, spi_save;
+   private:
+        // ada fruit display only (hacked from Adafruit_HX8340B)
+        int8_t           cs, rst;
+        volatile uint8_t *dataport  , *clkport  , *csport;
+        uint8_t          datapinmask, clkpinmask, cspinmask, spi_save;
 
-    void InitAdaFruitTFT();
-    void writeCommand(uint8_t c);
-    void writeData(uint8_t c);
+        void InitAdaFruitTFT();
+        void writeCommand(uint8_t c);
+        void writeData(uint8_t c);
     
 	protected:
 		byte fcolorr,fcolorg,fcolorb;
