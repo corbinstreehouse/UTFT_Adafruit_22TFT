@@ -30,7 +30,7 @@ static inline int URectMaxX(URect r) { return r.origin.x + r.size.width; }
 static inline int URectMaxY(URect r) { return r.origin.y + r.size.height; }
 static inline int URectHeight(URect r) { return r.size.height; }
 static inline int URectWidth(URect r) { return r.size.width; }
-static inline bool URectIsEmpty(URect r) { return r.size.height == 0 || r.size.width || 0; }
+static inline bool URectIsEmpty(URect r) { return r.size.height == 0 || r.size.width == 0; }
 static inline URect URectMake(int x, int y, int width, int height) {
     URect r = { x, y, width, height };
     return r;

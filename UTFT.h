@@ -163,12 +163,18 @@ class UTFT
 		void setContrast(char c);
 		int  getDisplayXSize();
 		int	 getDisplayYSize();
+    
+    void beginUpdates();
+    void endUpdates();
+    
+    void readColorMode();
 
    private:
         // ada fruit display only (hacked from Adafruit_HX8340B)
-        int8_t           cs, rst;
-        volatile uint8_t *dataport  , *clkport  , *csport;
-        uint8_t          datapinmask, clkpinmask, cspinmask, spi_save;
+        int8_t           rst;
+        volatile uint8_t *dataport  , *clkport;
+        uint8_t          datapinmask, clkpinmask, spi_save;
+        int8_t _updateCount;
 
         void InitAdaFruitTFT();
         void writeCommand(uint8_t c);
