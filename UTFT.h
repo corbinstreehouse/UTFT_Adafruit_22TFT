@@ -59,6 +59,7 @@
 #define WHITE_COLOR 255, 255, 255
 #define BLACK_COLOR 0, 0, 0
 #define RED_COLOR 255, 0, 0
+#define BLUE_COLOR 0, 0, 255
 #define ORANGE_COLOR 255, 144, 0
 
 #define HX8347A			0
