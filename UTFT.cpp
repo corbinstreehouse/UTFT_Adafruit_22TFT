@@ -63,8 +63,51 @@ UTFT::UTFT()
 
 UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 {
-    _updateCount = 0;
-#if !ENABLE_ADAFRUIT_22_TFT
+    display_model=model;
+
+#if ENABLE_ADAFRUIT_22_TFT
+    disp_x_size=175;
+    disp_y_size=219;
+    
+    //rs is sclk
+    display_transfer_mode=16; // not sure...
+    
+    // set pin directions, set pins low by default (except reset)
+    P_CS	= portOutputRegister(digitalPinToPort(CS));
+    B_CS	= digitalPinToBitMask(CS);
+    rst = RST; // corbin hak
+    
+    pinMode(RST, OUTPUT);
+    pinMode(CS , OUTPUT);
+    digitalWrite(CS , LOW);
+    digitalWrite(RST, HIGH);
+    
+    // Even if using hardware SPI, the clock and data pins are still
+    // looked up and set to outputs, because the 9-bit SPI output code
+    // temporarily disables the SPI bus to issue the extra bit.
+    
+    // SCK == WR
+    clkport     = portOutputRegister(digitalPinToPort(SCK));
+    clkpinmask  = digitalPinToBitMask(SCK);
+    
+    // RS == MOSI
+    dataport    = portOutputRegister(digitalPinToPort(MOSI));
+    datapinmask = digitalPinToBitMask(MOSI);
+    
+    pinMode(MISO, INPUT);
+    pinMode(SCK , OUTPUT);
+    pinMode(MOSI, OUTPUT);
+    pinMode(SS  , OUTPUT); // BAH, ss is wrong here...
+    
+    SPI.begin();
+    SPI.setClockDivider(SPI_CLOCK_DIV8); // 4 MHz (half speed)
+    SPI.setBitOrder(MSBFIRST);
+    SPI.setDataMode(SPI_MODE0);
+    spi_save    = SPCR; // Save SPI config bits for later
+    
+    ///        P_RST	= portOutputRegister(digitalPinToPort(RST));
+    B_RST	= digitalPinToBitMask(RST);
+#else
 	switch (model)
 	{
 		case HX8347A:
@@ -151,93 +194,42 @@ UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 			display_transfer_mode=16;
 			break;
 	}
-#endif
-	display_model=model;
-
-#if ENABLE_ADAFRUIT_22_TFT
-    if (display_model == ADAFRUIT_2_2_TFT) {
-        disp_x_size=175;
-        disp_y_size=219;
-        
-        //rs is sclk
-        display_transfer_mode=16; // not sure...
-        
-        // set pin directions, set pins low by default (except reset)
+    if (display_transfer_mode!=1)
+    {
+        _set_direction_registers(display_transfer_mode);
+        P_RS	= portOutputRegister(digitalPinToPort(RS));
+        B_RS	= digitalPinToBitMask(RS);
+        P_WR	= portOutputRegister(digitalPinToPort(WR));
+        B_WR	= digitalPinToBitMask(WR);
         P_CS	= portOutputRegister(digitalPinToPort(CS));
         B_CS	= digitalPinToBitMask(CS);
-        rst = RST; // corbin hak
-        
-        pinMode(RST, OUTPUT);
-        pinMode(CS , OUTPUT);
-        digitalWrite(CS , LOW);
-        digitalWrite(RST, HIGH);
-        
-        // Even if using hardware SPI, the clock and data pins are still
-        // looked up and set to outputs, because the 9-bit SPI output code
-        // temporarily disables the SPI bus to issue the extra bit.
-
-        // SCK == WR
-        clkport     = portOutputRegister(digitalPinToPort(SCK));
-        clkpinmask  = digitalPinToBitMask(SCK);
-        
-        // RS == MOSI
-        dataport    = portOutputRegister(digitalPinToPort(MOSI));
-        datapinmask = digitalPinToBitMask(MOSI);
-        
-        pinMode(MISO, INPUT);
-        pinMode(SCK , OUTPUT);
-        pinMode(MOSI, OUTPUT);
-        pinMode(SS  , OUTPUT); // BAH, ss is wrong here...
-        
-        SPI.begin();
-        SPI.setClockDivider(SPI_CLOCK_DIV8); // 4 MHz (half speed)
-        SPI.setBitOrder(MSBFIRST);
-        SPI.setDataMode(SPI_MODE0);
-        spi_save    = SPCR; // Save SPI config bits for later
-
-///        P_RST	= portOutputRegister(digitalPinToPort(RST));
+        P_RST	= portOutputRegister(digitalPinToPort(RST));
         B_RST	= digitalPinToBitMask(RST);
+        pinMode(RS,OUTPUT);
+        pinMode(WR,OUTPUT);
+        pinMode(CS,OUTPUT);
+        pinMode(RST,OUTPUT);
     }
-#else
     else
     {
-        if (display_transfer_mode!=1)
+        P_SDA	= portOutputRegister(digitalPinToPort(RS));
+        B_SDA	= digitalPinToBitMask(RS);
+        P_SCL	= portOutputRegister(digitalPinToPort(WR));
+        B_SCL	= digitalPinToBitMask(WR);
+        P_CS	= portOutputRegister(digitalPinToPort(CS));
+        B_CS	= digitalPinToBitMask(CS);
+        P_RST	= portOutputRegister(digitalPinToPort(RST));
+        B_RST	= digitalPinToBitMask(RST);
+        if (display_serial_mode!=SERIAL_4PIN)
         {
-            _set_direction_registers(display_transfer_mode);
-            P_RS	= portOutputRegister(digitalPinToPort(RS));
-            B_RS	= digitalPinToBitMask(RS);
-            P_WR	= portOutputRegister(digitalPinToPort(WR));
-            B_WR	= digitalPinToBitMask(WR);
-            P_CS	= portOutputRegister(digitalPinToPort(CS));
-            B_CS	= digitalPinToBitMask(CS);
-            P_RST	= portOutputRegister(digitalPinToPort(RST));
-            B_RST	= digitalPinToBitMask(RST);
-            pinMode(RS,OUTPUT);
-            pinMode(WR,OUTPUT);
-            pinMode(CS,OUTPUT);
-            pinMode(RST,OUTPUT);
+            P_RS	= portOutputRegister(digitalPinToPort(SER));
+            B_RS	= digitalPinToBitMask(SER);
+            pinMode(SER,OUTPUT);
         }
-        else
-        {
-            P_SDA	= portOutputRegister(digitalPinToPort(RS));
-            B_SDA	= digitalPinToBitMask(RS);
-            P_SCL	= portOutputRegister(digitalPinToPort(WR));
-            B_SCL	= digitalPinToBitMask(WR);
-            P_CS	= portOutputRegister(digitalPinToPort(CS));
-            B_CS	= digitalPinToBitMask(CS);
-            P_RST	= portOutputRegister(digitalPinToPort(RST));
-            B_RST	= digitalPinToBitMask(RST);
-            if (display_serial_mode!=SERIAL_4PIN)
-            {
-                P_RS	= portOutputRegister(digitalPinToPort(SER));
-                B_RS	= digitalPinToBitMask(SER);
-                pinMode(SER,OUTPUT);
-            }
-            pinMode(RS,OUTPUT);
-            pinMode(WR,OUTPUT);
-            pinMode(CS,OUTPUT);
-            pinMode(RST,OUTPUT);
-        }
+        pinMode(RS,OUTPUT);
+        pinMode(WR,OUTPUT);
+        pinMode(CS,OUTPUT);
+        pinMode(RST,OUTPUT);
     }
 #endif
 }
@@ -245,62 +237,53 @@ UTFT::UTFT(byte model, int RS, int WR,int CS, int RST, int SER)
 void UTFT::LCD_Write_COM(char VL)  
 {
 #if ENABLE_ADAFRUIT_22_TFT
-    if (display_model == ADAFRUIT_2_2_TFT) {
-        cbi(P_CS, B_CS);
-        writeData(0x00);
-        writeData(VL);
-        sbi(P_CS, B_CS);
-    }
+    cbi(P_CS, B_CS);
+    writeData(0x00);
+    writeData(VL);
+    sbi(P_CS, B_CS);
 #else
-    else
+    if (display_transfer_mode!=1)
     {
-        if (display_transfer_mode!=1)
-        {
-            cbi(P_RS, B_RS);
-            LCD_Writ_Bus(0x00,VL,display_transfer_mode);
-        }
-        else
-            LCD_Writ_Bus(0x00,VL,display_transfer_mode);
+        cbi(P_RS, B_RS);
+        LCD_Writ_Bus(0x00,VL,display_transfer_mode);
     }
+    else
+        LCD_Writ_Bus(0x00,VL,display_transfer_mode);
 #endif
 }
 
 void UTFT::LCD_Write_DATA(char VH,char VL)
 {
-    if (display_model == ADAFRUIT_2_2_TFT) {
-        writeData(VH);
-        writeData(VL);
-    } else {
-#if !ENABLE_ADAFRUIT_22_TFT
-        if (display_transfer_mode!=1)
-        {
-            sbi(P_RS, B_RS);
-            LCD_Writ_Bus(VH,VL,display_transfer_mode);
-        }
-        else
-        {
-            LCD_Writ_Bus(0x01,VH,display_transfer_mode);
-            LCD_Writ_Bus(0x01,VL,display_transfer_mode);
-        }
-#endif
+#if ENABLE_ADAFRUIT_22_TFT
+    writeData(VH);
+    writeData(VL);
+#else
+    if (display_transfer_mode!=1)
+    {
+        sbi(P_RS, B_RS);
+        LCD_Writ_Bus(VH,VL,display_transfer_mode);
     }
+    else
+    {
+        LCD_Writ_Bus(0x01,VH,display_transfer_mode);
+        LCD_Writ_Bus(0x01,VL,display_transfer_mode);
+    }
+#endif
 }
 
 void UTFT::LCD_Write_DATA(char VL)
 {
-    if (display_model == ADAFRUIT_2_2_TFT) {
-        writeData(VL);
-    } else {
-#if !ENABLE_ADAFRUIT_22_TFT
-        if (display_transfer_mode!=1)
-        {
-            sbi(P_RS, B_RS);
-            LCD_Writ_Bus(0x00,VL,display_transfer_mode);
-        }
-        else
-            LCD_Writ_Bus(0x01,VL,display_transfer_mode);
-#endif
+#if ENABLE_ADAFRUIT_22_TFT
+    writeData(VL);
+#else
+    if (display_transfer_mode!=1)
+    {
+        sbi(P_RS, B_RS);
+        LCD_Writ_Bus(0x00,VL,display_transfer_mode);
     }
+    else
+        LCD_Writ_Bus(0x01,VL,display_transfer_mode);
+#endif
 }
 
 void UTFT::LCD_Write_COM_DATA(char com1,int dat1)
@@ -426,68 +409,6 @@ initCmd[] = {
 #define SPI_HW_OFF   SPCR = 0;
 #define SPI_HW_ON    SPCR = _BV(MSTR) | _BV(SPE);
 #define SPI_HW_WAIT  while (!(SPSR & _BV(SPIF)));
-
-
-void UTFT::readColorMode() {
-//    SPCR = (1<<SPE)|(1<<MSTR);
-//    byte clr;
-//    clr=SPSR;
-//    clr=SPDR;
-
-    delay(100);
-
-//    cbi(P_CS, B_CS);
-////    digitalWrite(3, LOW);
-////    
-////    // send the request
-////    SPI.transfer(HX8340B_N_RDDIDIF);
-//    
-//    
-////    writeCommand(HX8340B_N_DISPOFF);
-//    // read the first byte
-//    writeCommand(HX8340B_N_RDDCOLMOD);
-//
-//    writeData(0);
-//    byte value1 = SPDR; // SPI.transfer(0);
-//
-//    writeData(0);
-//    byte value2 = SPDR; // SPI.transfer(0);
-
-//    writeData(0x1);
-//    writeData(0x2);
-//    byte value2 = SPDR; // SPI.transfer(0);
-//    writeData(0x3);
-//    byte value3 = SPDR; // SPI.transfer(0);
-//    writeData(0x4);
-//    byte value4 = SPDR; // SPI.transfer(0);
-
-//    writeCommand(0x4);
-//    byte value5 = SPDR; // SPI.transfer(0);
-    
-//    writeCommand(HX8340B_N_DISPOFF);
-
-//    sbi(P_CS, B_CS);
-    
-    
-    //read the second byte
-//    byte value2 = SPI.transfer(0);
-//    byte value3 = SPI.transfer(0);
-//    byte value4 = SPI.transfer(0);
-    
-
-//    Serial.print("value1:");
-//    Serial.println(value1, 2);
-    
-//    Serial.print("value1:");
-//    Serial.println(value1, 2);
-//    Serial.print("value2:");
-//    Serial.println(value2, 2);
-//    Serial.print("value3:");
-//    Serial.println(value3, 2);
-//    Serial.print("value4:");
-//    Serial.println(value4, 2);
-    
-}
 
 void UTFT::InitAdaFruitTFT() {
     // Reset the LCD
@@ -2008,7 +1929,7 @@ void UTFT::drawCircle(int x, int y, int radius)
 	ch=((fcolorr&248)|fcolorg>>5);
 	cl=((fcolorg&28)<<3|fcolorb>>3);
  
-	beginUpdates();
+	cbi(P_CS, B_CS);
 	setXY(x, y + radius, x, y + radius);
 	LCD_Write_DATA(ch,cl);
 	setXY(x, y - radius, x, y - radius);
@@ -2046,13 +1967,13 @@ void UTFT::drawCircle(int x, int y, int radius)
 		setXY(x - y1, y - x1, x - y1, y - x1);
 		LCD_Write_DATA(ch,cl);
 	}
-	endUpdates();
+	sbi(P_CS, B_CS);
 	clrXY();
 }
 
 void UTFT::fillCircle(int x, int y, int radius)
 {
-	beginUpdates();
+	cbi(P_CS, B_CS);
 	for(int y1=-radius; y1<=radius; y1++)
 		for(int x1=-radius; x1<=radius; x1++) 
 			if(x1*x1+y1*y1 <= radius*radius) 
@@ -2060,13 +1981,13 @@ void UTFT::fillCircle(int x, int y, int radius)
 				setXY(x+x1, y+y1, x+x1, y+y1);
 				LCD_Write_DATA(((fcolorr&248)|fcolorg>>5),((fcolorg&28)<<3|fcolorb>>3));
 			}
-	endUpdates();
+	sbi(P_CS, B_CS);
 	clrXY();
 }
 
 void UTFT::clrScr()
 {
-    beginUpdates();
+    cbi(P_CS, B_CS);
 #if ENABLE_ADAFRUIT_22_TFT
     clrXY();
     for (int i=0; i<((disp_x_size+1)*(disp_y_size+1)); i++)
@@ -2094,7 +2015,7 @@ void UTFT::clrScr()
         }
     }
 #endif
-    endUpdates();
+    sbi(P_CS, B_CS);
 }
 
 void UTFT::fillScr(byte r, byte g, byte b)
@@ -2105,7 +2026,7 @@ void UTFT::fillScr(byte r, byte g, byte b)
 	ch=((r&248)|g>>5);
 	cl=((g&28)<<3|b>>3);
 
-	beginUpdates();
+	cbi(P_CS, B_CS);
 	clrXY();
 	if (display_transfer_mode!=1)
 		sbi(P_RS, B_RS);
@@ -2119,7 +2040,7 @@ void UTFT::fillScr(byte r, byte g, byte b)
 			LCD_Writ_Bus(1,cl,display_transfer_mode);
 		}
 	}
-    endUpdates();
+    sbi(P_CS, B_CS);
 }
 
 void UTFT::setColor(byte r, byte g, byte b)
@@ -2143,10 +2064,10 @@ void UTFT::setPixel(byte r,byte g,byte b)
 
 void UTFT::drawPixel(int x, int y)
 {
-	beginUpdates();
+	cbi(P_CS, B_CS);
 	setXY(x, y, x, y);
 	setPixel(fcolorr, fcolorg, fcolorb);
-    endUpdates();
+    sbi(P_CS, B_CS);
 	clrXY();
 }
 
@@ -2189,7 +2110,7 @@ void UTFT::drawLine(int x1, int y1, int x2, int y2)
 	}
 	else if (abs(x2-x1)>abs(y2-y1))
 	{
-		beginUpdates();
+		cbi(P_CS, B_CS);
 		delta=(double(y2-y1)/double(x2-x1));
 		ty=double(y1);
 		if (x1>x2)
@@ -2210,11 +2131,11 @@ void UTFT::drawLine(int x1, int y1, int x2, int y2)
         		ty=ty+delta;
 			}
 		}
-		endUpdates();
+		sbi(P_CS, B_CS);
 	}
 	else
 	{
-		beginUpdates();
+		cbi(P_CS, B_CS);
 		delta=(float(x2-x1)/float(y2-y1));
 		tx=float(x1);
         if (y1>y2)
@@ -2235,7 +2156,7 @@ void UTFT::drawLine(int x1, int y1, int x2, int y2)
         		tx=tx+delta;
 			}
         }
-		endUpdates();
+		sbi(P_CS, B_CS);
 	}
 
 	clrXY();
@@ -2248,13 +2169,13 @@ void UTFT::drawHLine(int x, int y, int l)
 	ch=((fcolorr&248)|fcolorg>>5);
 	cl=((fcolorg&28)<<3|fcolorb>>3);
 
-	beginUpdates();
+	cbi(P_CS, B_CS);
 	setXY(x, y, x+l, y);
 	for (int i=0; i<l+1; i++)
 	{
 		LCD_Write_DATA(ch, cl);
 	}
-	endUpdates();
+	sbi(P_CS, B_CS);
 	clrXY();
 }
 
@@ -2265,13 +2186,13 @@ void UTFT::drawVLine(int x, int y, int l)
 	ch=((fcolorr&248)|fcolorg>>5);
 	cl=((fcolorg&28)<<3|fcolorb>>3);
 
-	beginUpdates();
+	cbi(P_CS, B_CS);
 	setXY(x, y, x, y+l);
 	for (int i=0; i<l; i++)
 	{
 		LCD_Write_DATA(ch, cl);
 	}
-	endUpdates();
+	sbi(P_CS, B_CS);
     clrXY();
 }
 
@@ -2281,7 +2202,7 @@ void UTFT::printChar(byte c, int x, int y)
 	word j;
 	word temp; 
 
-	beginUpdates();
+	cbi(P_CS, B_CS);
     
 	if (orient==PORTRAIT)
 	{
@@ -2330,7 +2251,7 @@ void UTFT::printChar(byte c, int x, int y)
 			temp+=(cfont.x_size/8);
 		}
 	}
-	endUpdates();
+	sbi(P_CS, B_CS);
 	clrXY();
 }
 
@@ -2342,7 +2263,7 @@ void UTFT::rotateChar(byte c, int x, int y, int pos, int deg)
 	double radian;
 	radian=deg*0.0175;  
 
-	beginUpdates();
+	cbi(P_CS, B_CS);
 
 	temp=((c-cfont.offset)*((cfont.x_size/8)*cfont.y_size))+4;
 	for(j=0;j<cfont.y_size;j++) 
@@ -2369,7 +2290,7 @@ void UTFT::rotateChar(byte c, int x, int y, int pos, int deg)
 		}
 		temp+=(cfont.x_size/8);
 	}
-    endUpdates();
+    sbi(P_CS, B_CS);
     clrXY();
 }
 
@@ -2394,14 +2315,14 @@ void UTFT::print(char *st, int x, int y, int deg)
 		x=((disp_y_size+1)-(stl*cfont.x_size))/2;
 	}
 
-    beginUpdates();
+    cbi(P_CS, B_CS);
 	for (i=0; i<stl; i++) {
 		if (deg==0)
 			printChar(*st++, x + (i*(cfont.x_size)), y);
 		else
 			rotateChar(*st++, x, y, i, deg);
     }
-    endUpdates();
+    sbi(P_CS, B_CS);
 }
 
 void UTFT::print(String st, int x, int y, int deg)
@@ -2671,7 +2592,7 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg
 		drawBitmap(x, y, sx, sy, data);
 	else
 	{
-		beginUpdates();
+		cbi(P_CS, B_CS);
 		for (ty=0; ty<sy; ty++) {
 			for (tx=0; tx<sx; tx++)
 			{
@@ -2684,21 +2605,21 @@ void UTFT::drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg
 				LCD_Write_DATA(col>>8,col & 0xff);
 			}
         }
-		endUpdates();
+		sbi(P_CS, B_CS);
 	}
 	clrXY();
 }
 
 void UTFT::lcdOff()
 {
-	beginUpdates();
+	cbi(P_CS, B_CS);
 	switch (display_model)
 	{
 	case PCF8833:
 		LCD_Write_COM(0x28);
 		break;
 	}
-    endUpdates();
+    sbi(P_CS, B_CS);
 }
 
 void UTFT::lcdOn()
@@ -2708,20 +2629,6 @@ void UTFT::lcdOn()
 	{
 	case PCF8833:
 		LCD_Write_COM(0x29);
-		break;
-	}
-	sbi(P_CS, B_CS);
-}
-
-void UTFT::setContrast(char c)
-{
-	cbi(P_CS, B_CS);
-	switch (display_model)
-	{
-	case PCF8833:
-		if (c>64) c=64;
-		LCD_Write_COM(0x25);
-		LCD_Write_DATA(c);
 		break;
 	}
 	sbi(P_CS, B_CS);
@@ -2741,19 +2648,5 @@ int UTFT::getDisplayYSize()
 		return disp_y_size+1;
 	else
 		return disp_x_size+1;
-}
-
-void UTFT::beginUpdates() {
-    if (_updateCount == 0) {
-        cbi(P_CS, B_CS);
-    }
-    _updateCount++;
-}
-
-void UTFT::endUpdates() {
-    _updateCount--;
-    if (_updateCount == 0) {
-        sbi(P_CS, B_CS);
-    }
 }
 

@@ -130,7 +130,6 @@ struct _current_font
 	uint8_t numchars;
 };
 
-
 class UTFT
 {
 	public:
@@ -161,21 +160,14 @@ class UTFT
 		void drawBitmap(int x, int y, int sx, int sy, bitmapdatatype data, int deg, int rox, int roy);
 		void lcdOff();
 		void lcdOn();
-		void setContrast(char c);
 		int  getDisplayXSize();
 		int	 getDisplayYSize();
     
-    void beginUpdates();
-    void endUpdates();
-    
-    void readColorMode();
-
    private:
         // ada fruit display only (hacked from Adafruit_HX8340B)
         int8_t           rst;
         volatile uint8_t *dataport  , *clkport;
         uint8_t          datapinmask, clkpinmask, spi_save;
-        int8_t _updateCount;
 
         void InitAdaFruitTFT();
         void writeCommand(uint8_t c);
